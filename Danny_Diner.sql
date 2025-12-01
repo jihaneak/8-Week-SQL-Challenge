@@ -60,3 +60,10 @@ SUM(price) as total_spent
 From dannys_diner.sales as S
 INNER JOIN dannys_diner.menu as M ON S.product_id = M.product_id
 GROUP BY customer_id;
+
+#2.How many days has each customer visited the restaurant?
+SELECT
+customer_id,
+COUNT(DISTINCT order_date) as days
+From dannys_diner.sales
+GROUP BY customer_id;
