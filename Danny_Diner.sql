@@ -52,3 +52,11 @@ VALUES
 
 SET search_path = dannys_diner;
 SELECT * FROM menu;
+
+#1.What is the total amount each customer spent at the restaurant?
+SELECT
+customer_id,
+SUM(price) as total_spent
+From dannys_diner.sales as S
+INNER JOIN dannys_diner.menu as M ON S.product_id = M.product_id
+GROUP BY customer_id;
