@@ -98,3 +98,33 @@ INNER JOIN dannys_diner.menu as M ON S.product_id = M.product_id
 GROUP BY product_name
 ORDER BY COUNT(order_date) DESC
 LIMIT 1;
+
+#5.Which item was the most popular for each customer?
+WITH counts AS(
+  SELECT
+  customer_id,
+  product_name,
+  COUNT(order_date) as orders
+  From dannys_diner.sales as S
+  INNER JOIN dannys_diner.menu as M ON S.product_id = M.product_id
+  GROUP BY customer_id, product_name
+),
+
+ranked_sales AS (
+  SELECT 
+customer_id,
+product_name,
+orders,
+DENSE_RANK() OVER (
+  PARTITION BY customer_id
+  ORDER BY orders DESC
+) as rank
+FROM counts
+)
+
+SELECT
+customer_id,
+product_name,
+orders
+FROM ranked_sales
+WHERE rank=1;
