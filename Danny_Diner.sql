@@ -88,3 +88,13 @@ product_name
 FROM ordered_sales
 WHERE rank = 1
 GROUP BY customer_id, product_name;
+
+#4.What is the most purchased item on the menu and how many times was it purchased by all customers?
+SELECT
+product_name,
+COUNT(order_date) as orders 
+From dannys_diner.sales as S
+INNER JOIN dannys_diner.menu as M ON S.product_id = M.product_id
+GROUP BY product_name
+ORDER BY COUNT(order_date) DESC
+LIMIT 1;
