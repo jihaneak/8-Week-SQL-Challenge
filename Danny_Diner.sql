@@ -128,3 +128,146 @@ product_name,
 orders
 FROM ranked_sales
 WHERE rank=1;
+
+#6.Which item was purchased first by the customer after they became a member?
+WITH member_sales_cte AS (
+  SELECT
+    s.customer_id,
+    m.join_date,
+    s.order_date,
+    s.product_id,
+    menu.product_name,
+    DENSE_RANK() OVER (
+      PARTITION BY s.customer_id
+      ORDER BY s.order_date ASC
+    ) AS rank
+  FROM dannys_diner.sales AS s
+  JOIN dannys_diner.members AS m
+    ON s.customer_id = m.customer_id
+  JOIN dannys_diner.menu AS menu
+    ON s.product_id = menu.product_id
+  WHERE s.order_date >= m.join_date
+)
+
+SELECT
+  customer_id,
+  order_date,
+  product_name
+FROM member_sales_cte
+WHERE rank = 1;
+
+#7.Which item was purchased just before the customer became a member?
+WITH prior_purchase_cte AS (
+  SELECT
+    s.customer_id,
+    m.join_date,
+    s.order_date,
+    s.product_id,
+    menu.product_name,
+    DENSE_RANK() OVER (
+      PARTITION BY s.customer_id
+      ORDER BY s.order_date DESC
+    ) AS rank
+  FROM dannys_diner.sales AS s
+  JOIN dannys_diner.members AS m
+    ON s.customer_id = m.customer_id
+  JOIN dannys_diner.menu AS menu
+    ON s.product_id = menu.product_id
+  WHERE s.order_date < m.join_date
+)
+
+SELECT
+  customer_id,
+  order_date,
+  product_name
+FROM prior_purchase_cte
+WHERE rank = 1;
+
+#8.What is the total items and amount spent for each member before they became a member?
+SELECT s.customer_id, count(s.product_id) as total_items, sum(menu.price) as total_spent
+FROM dannys_diner.sales as s 
+JOIN dannys_diner.menu as menu
+ON s.product_id = menu.product_id
+JOIN dannys_diner.members as m 
+ON s.customer_id = m.customer_id
+WHERE s.order_date < m.join_date
+GROUP BY s.customer_id;
+
+#9.If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
+SELECT s.customer_id,
+sum(
+  CASE 
+    WHEN m.product_name = 'sushi' THEN m.price * 20  
+    ELSE m.price * 10
+  END
+) AS total_points
+FROM dannys_diner.sales as s 
+JOIN dannys_diner.menu as m
+ON s.product_id = m.product_id
+GROUP BY s.customer_id;
+
+#10.In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customer A and B have at the end of January?
+SELECT 
+s.customer_id,
+SUM(
+  CASE 
+    WHEN s.order_date BETWEEN m.join_date AND (m.join_date + 6) THEN menu.price * 20
+    WHEN menu.product_name = 'sushi' THEN menu.price * 20
+    ELSE menu.price * 10
+  END
+) AS total_points
+FROM dannys_diner.sales as s
+JOIN dannys_diner.menu as menu
+ON s.product_id = menu.product_id
+JOIN dannys_diner.members as m
+ON s.customer_id = m.customer_id
+WHERE s.order_date <= '2021-01-31'
+GROUP BY s.customer_id;
+
+#Bonus 1
+SELECT 
+s.customer_id,
+s.order_date,
+menu.product_name,
+menu.price,
+CASE 
+  WHEN m.join_date IS NULL THEN 'N'
+  WHEN s.order_date < m.join_date THEN 'N'
+  ELSE 'Y'
+END as member 
+FROM dannys_diner.sales as s
+LEFT JOIN dannys_diner.menu as menu
+ON s.product_id = menu.product_id
+LEFT JOIN dannys_diner.members as m
+ON s.customer_id = m.customer_id
+ORDER BY s.customer_id, s.order_date;
+
+#Bonus 2
+WITH summary_cte AS (
+  SELECT
+    s.customer_id,
+    s.order_date,
+    menu.product_name,
+    menu.price,
+    CASE
+      WHEN m.join_date IS NULL THEN 'N'
+      WHEN s.order_date < m.join_date THEN 'N'
+      ELSE 'Y'
+    END AS member
+  FROM dannys_diner.sales AS s
+  LEFT JOIN dannys_diner.menu AS menu
+    ON s.product_id = menu.product_id
+  LEFT JOIN dannys_diner.members AS m
+    ON s.customer_id = m.customer_id
+)
+
+SELECT
+  *,
+  CASE
+    WHEN member = 'N' THEN NULL
+    ELSE DENSE_RANK() OVER (
+      PARTITION BY customer_id, member
+      ORDER BY order_date
+    )
+  END AS ranking
+FROM summary_cte;
